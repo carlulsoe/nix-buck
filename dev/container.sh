@@ -11,6 +11,8 @@ if ! podman container exists "$name"; then
     --device /dev/kvm -v nix-buck-store:/nix -v "$PWD":/work:Z -w /work \
     docker.io/nixos/nix:latest sleep infinity
   podman exec "$name" sh -c '
+    # The image links /etc/nix/nix.conf into its store; never write through it.
+    cp --remove-destination "$(readlink -f /etc/nix/nix.conf)" /etc/nix/nix.conf
     cat >> /etc/nix/nix.conf <<CONF
 experimental-features = nix-command flakes
 max-jobs = auto
