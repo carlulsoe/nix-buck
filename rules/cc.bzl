@@ -227,8 +227,16 @@ cc_binary = rule(
 
 def _run_remote_impl(ctx: AnalysisContext) -> list[Provider]:
     report = ctx.actions.declare_output(ctx.attrs.name + ".txt")
+    shell = ctx.attrs.shell[NixClosureInfo]
     ctx.actions.run(
-        cmd_args("/bin/sh", "-c", '"$@" > "$0"', report.as_output(), ctx.attrs.exe[RunInfo]),
+        cmd_args(
+            store_path(shell, "bash", "bin/bash"),
+            "-c",
+            '"$@" > "$0"',
+            report.as_output(),
+            ctx.attrs.exe[RunInfo],
+            hidden = shell.tree,
+        ),
         category = "run_remote",
     )
     return [
@@ -239,5 +247,8 @@ def _run_remote_impl(ctx: AnalysisContext) -> list[Provider]:
 # Run a binary on a worker and keep what it prints.
 run_remote = rule(
     impl = _run_remote_impl,
-    attrs = {"exe": attrs.dep(providers = [RunInfo])},
+    attrs = {
+        "exe": attrs.dep(providers = [RunInfo]),
+        "shell": attrs.dep(default = "root//:bash-closure", providers = [NixClosureInfo]),
+    },
 )

@@ -46,20 +46,34 @@
           zlib = pkgs.zlib;
           zlib-dev = pkgs.zlib.dev;
         };
+        # The shell actions run under: workers have none of their own.
+        bash = relocate "bash-closure" { bash = pkgs.bash; };
       };
       gcc-closure = closures.gcc;
       remotetool = pkgs.callPackage ./nix/remotetool.nix { };
 
-      # Upload the relocated closures to the REAPI CAS, pin their digests for
-      # buck2 in nix_closures.bzl and index their store paths for the
-      # substituter. Run from the repository root.
+      # What push-closure and nix_closures.bzl are made from.
+      closuresJson = pkgs.writeText "closures.json" (builtins.toJSON
+        (builtins.mapAttrs (_: c: { tree = "${c}"; inherit (c) originals; }) closures));
+
+      # nix_closures.bzl as it must be: every closure pinned by the REAPI
+      # digest it will have in any CAS, computed here without one.
+      closure-pins = pkgs.runCommand "nix_closures.bzl" { nativeBuildInputs = [ pkgs.python3 ]; } ''
+        python3 ${lib.fileset.toSource {
+          root = ./nix;
+          fileset = lib.fileset.unions [ ./nix/pins.py ./nix/reapi.py ];
+        }}/pins.py ${closuresJson} > $out
+      '';
+
+      # Install nix_closures.bzl, upload the closures to the REAPI CAS (the CAS
+      # must agree with the pinned digests) and index their store paths for
+      # the substituter. Run from the repository root.
       push-closure = pkgs.writeShellApplication {
         name = "push-closure";
         runtimeInputs = [ remotetool pkgs.python3 ];
         text = ''
-          exec python3 ${./nix}/push_closure.py nix_closures.bzl .nix-buck/index ${
-            pkgs.writeText "closures.json" (builtins.toJSON
-              (builtins.mapAttrs (_: c: { tree = "${c}"; inherit (c) originals; }) closures))}
+          install -m 644 ${closure-pins} nix_closures.bzl
+          exec python3 ${./nix}/push_closure.py .nix-buck/index ${closuresJson}
         '';
       };
 
@@ -100,7 +114,7 @@
       lib.buck2 = buck2;
 
       packages.${system} = {
-        inherit gcc-closure remotetool push-closure substituter publish;
+        inherit gcc-closure closure-pins remotetool push-closure substituter publish;
         zlib-closure = closures.zlib;
         buck2 = pkgs.buck2;
         host-vm = self.nixosConfigurations.host.config.system.build.vm;
@@ -124,29 +138,40 @@
         modules = [ ./nix/host.nix { nixpkgs.hostPlatform = system; } ];
       };
 
-      # Boot the worker and compile hello on it with the relocated closure,
-      # every tool exec'd directly through the $ORIGIN handler.
-      checks.${system}.worker = pkgs.testers.runNixOSTest {
-        name = "nix-origin-worker";
-        nodes.worker = { lib, ... }: {
-          imports = [ ./nix/worker.nix ];
-          virtualisation.additionalPaths = [ gcc-closure ];
-          virtualisation.forwardPorts = lib.mkForce [ ];
-        };
-        testScript = ''
-          import re
-          worker.wait_for_unit("nix-origin-binfmt.service")
-          worker.wait_for_unit("nativelink.service")
-          worker.wait_for_open_port(50051)
-          worker.succeed("uname -r | grep '^7\\.3'")
-          print(worker.succeed("cat /proc/sys/fs/binfmt_misc/nix-origin"))
-          out = worker.succeed("sh ${./tests/relocated-gcc.sh} ${gcc-closure} ${./src} ${nixGcc} 2>&1")
-          print(out)
-          assert "exec'ing tools directly" in out
-          # Loader substitution: the binary, not ld.so, is the exec'd program.
-          assert re.search(r"^/proc/self/exe: +/tmp/\S+/nix/store/hello/bin/hello$", out, re.M)
-          assert "${nixGcc} on this machine: absent" in out
+      checks.${system} = {
+        # The committed pins are the closures the flake builds now.
+        closure-pins = pkgs.runCommand "closure-pins-current" { } ''
+          if ! diff -u ${./nix_closures.bzl} ${closure-pins}; then
+            echo "nix_closures.bzl does not pin the flake's closures: run nix run .#push-closure" >&2
+            exit 1
+          fi
+          touch $out
         '';
+
+        # Boot the worker and compile hello on it with the relocated closure,
+        # every tool exec'd directly through the $ORIGIN handler.
+        worker = pkgs.testers.runNixOSTest {
+          name = "nix-origin-worker";
+          nodes.worker = { lib, ... }: {
+            imports = [ ./nix/worker.nix ];
+            virtualisation.additionalPaths = [ gcc-closure ];
+            virtualisation.forwardPorts = lib.mkForce [ ];
+          };
+          testScript = ''
+            import re
+            worker.wait_for_unit("nix-origin-binfmt.service")
+            worker.wait_for_unit("nativelink.service")
+            worker.wait_for_open_port(50051)
+            worker.succeed("uname -r | grep '^7\\.3'")
+            print(worker.succeed("cat /proc/sys/fs/binfmt_misc/nix-origin"))
+            out = worker.succeed("sh ${./tests/relocated-gcc.sh} ${gcc-closure} ${./src} ${nixGcc} 2>&1")
+            print(out)
+            assert "exec'ing tools directly" in out
+            # Loader substitution: the binary, not ld.so, is the exec'd program.
+            assert re.search(r"^/proc/self/exe: +/tmp/\S+/nix/store/hello/bin/hello$", out, re.M)
+            assert "${nixGcc} on this machine: absent" in out
+          '';
+        };
       };
     };
 }

@@ -8,7 +8,9 @@ shares a name with the unpatched original. Within the copies:
 
 - PT_INTERP and RUNPATH become $ORIGIN-relative; RUNPATH entries naming a
   store path outside the closure are dead and dropped;
-- symlinks into /nix/store become relative;
+- symlinks into /nix/store become relative, and every relative target is
+  lexically cleaned (".././z/z100" from z/ is "z100"), as remotetool stores
+  it, so the tree here is the tree in the CAS;
 - GNU ld scripts that name siblings in their own directory get bare names,
   so ld finds them on the -L search path;
 - every remaining occurrence of an original hash, in any file or symlink, is
@@ -84,10 +86,13 @@ class Relocator:
 
     def relink(self, path):
         target = os.readlink(path)
+        here = os.path.dirname(path)
         if target.startswith(STORE):
-            new = os.path.relpath(self.in_tree(target), os.path.dirname(path))
+            new = os.path.relpath(self.in_tree(target), here)
         else:
             new = self.rewrite(target.encode()).decode()
+            if not os.path.isabs(new):
+                new = os.path.relpath(os.path.normpath(os.path.join(here, new)), here)
         if new != target:
             os.unlink(path)
             os.symlink(new, path)

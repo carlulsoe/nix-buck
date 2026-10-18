@@ -3,7 +3,8 @@
 # origin.nix makes the kernel resolve $ORIGIN in PT_INTERP, so a relocated
 # closure shipped as an action input runs from wherever NativeLink
 # materializes it. The store is an erofs image of this system's closure
-# only: no host store is mounted.
+# only: no host store is mounted. Every action runs in a sandbox that shows
+# it its input root and nothing else of this machine.
 { config, lib, pkgs, modulesPath, ... }:
 
 let
@@ -19,6 +20,21 @@ let
   };
 
   state = "/var/lib/nativelink";
+
+  # NativeLink runs every action as `sandbox ARGV...` in the action's input
+  # root. Only that directory is visible, at the same path, with private
+  # /proc, /dev and /tmp: no /nix/store, /bin, /usr or /etc, no other action
+  # or the CAS, no network. An action can use only what it declared.
+  sandbox = pkgs.writeShellScript "nativelink-sandbox" ''
+    root=$(pwd)
+    exec ${pkgs.bubblewrap}/bin/bwrap \
+      --unshare-pid --unshare-net --unshare-ipc --unshare-uts --unshare-cgroup \
+      --die-with-parent --new-session \
+      --bind "$root" "$root" --chdir "$root" \
+      --proc /proc --dev /dev --tmpfs /tmp \
+      -- "$@"
+  '';
+
   store = name: {
     filesystem = {
       content_path = "${state}/${name}/content";
@@ -51,6 +67,7 @@ let
         cas_fast_slow_store = "CAS";
         upload_action_result.ac_store = "AC";
         work_directory = "${state}/work";
+        entrypoint = "${sandbox}";
         platform_properties = {
           OSFamily.values = [ "linux" ];
           "container-image".values = [ "" ];
