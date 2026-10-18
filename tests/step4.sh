@@ -1,33 +1,32 @@
 #!/bin/sh
 # buck2 outputs -> Nix store paths. After step 3 built hello and zhello on
-# the worker: publish them, substitute them into the container's store by
-# their pinned digests (fetchClosure through nix/substituter.py, which reads
-# the CAS), closure and all, and do the same on a Linux 7.3 Nix host VM,
-# where they run natively.
+# the worker: publish them into a static binary cache, served by a plain
+# file server, substitute them into the container's store by their pinned
+# digests (fetchClosure from the cache), closure and all, and do the same on
+# a Linux 7.3 Nix host VM, where they run natively.
 set -eu
 cd "$(dirname "$0")/.."
 tests/step3.sh
 
 podman exec nix-buck sh -c '
-  set -e
   for p in /proc/[0-9]*; do
-    case $(tr "\0" " " 2>/dev/null < $p/cmdline) in *substitute[r].py*) kill ${p#/proc/} ;; esac
-  done'
-podman exec -d -w /work nix-buck sh -c 'exec nix run .#substituter > /tmp/substituter.log 2>&1'
-echo "waiting for the substituter on :8090..."
+    case $(tr "\0" " " 2>/dev/null < $p/cmdline) in *http.serve[r]*) kill ${p#/proc/} ;; esac
+  done
+  rm -rf .nix-buck/cache && mkdir -p .nix-buck/cache'
+podman exec -d -w /work nix-buck sh -c 'exec nix run .#serve-cache > /tmp/serve-cache.log 2>&1'
+echo "waiting for the cache server on :8090..."
 until podman exec nix-buck grep -q ':1F9A 00000000:0000 0A' /proc/net/tcp; do sleep 1; done
 
 podman exec nix-buck sh -c '
   set -e
   export PATH=$(nix build --no-link --print-out-paths .#buck2)/bin:$PATH
-  key=$(cat .nix-buck/public-key)
   originals=$(nix eval --json .#gcc-closure.originals)
 
+  # The cache started empty: everything in it comes from this publish.
   nix run .#publish -- //:hello //:zhello | tee /tmp/step4.publish
-  # buck2 built exactly the trees buck2-pins.json pins, and they were
-  # already in the CAS: the worker had them as inputs to run them.
+  key=$(cat .nix-buck/public-key)
+  # buck2 built exactly the trees buck2-pins.json pins.
   git diff --exit-code buck2-pins.json
-  [ "$(grep -c "^  blobs missing from the CAS before publishing: 0$" /tmp/step4.publish)" = 2 ]
 
   : > /tmp/step4.paths
   for t in hello zhello; do
@@ -53,10 +52,10 @@ podman exec nix-buck sh -c '
     grep -q -- "-gcc-16.2.0-lib$" /tmp/step4.refs
     if [ $t = zhello ]; then n=3; grep -q -- "-zlib-1.3.2$" /tmp/step4.refs; else n=2; fi
     [ "$(wc -l < /tmp/step4.refs)" = $n ]
-    # Every path in its closure is a relocated one the substituter indexed.
+    # Its whole closure is in the cache, and none of it is an original.
     for p in $(nix-store -qR "$path"); do
       h=$(basename "$p" | cut -c1-32)
-      [ -e .nix-buck/index/$h.json ] || { echo "$p did not come from the CAS"; exit 1; }
+      [ -e .nix-buck/cache/$h.narinfo ] || { echo "$p is not in the cache"; exit 1; }
       case "$originals" in *$h*) echo "$p is an unrelocated original"; exit 1 ;; esac
     done
 
@@ -65,8 +64,13 @@ podman exec nix-buck sh -c '
     echo "store path $path has the bytes buck2 built"
   done
 
+  # Publishing again adds nothing: the cache already has every path, with
+  # the same contents.
+  nix run .#publish -- //:hello //:zhello | grep "closure:" | tee /tmp/step4.again
+  [ "$(grep -c ", 0 newly in the cache$" /tmp/step4.again)" = 2 ]
+
   # The same through a Nix host on 7.3, where the binaries run without help.
-  mkdir -p /var/lib/vms/host-demo && rm -f /var/lib/vms/host-demo/out.txt
+  rm -rf /var/lib/vms/host-demo && mkdir -p /var/lib/vms/host-demo
   {
     echo "set -e"
     for path in $(cat /tmp/step4.paths); do

@@ -65,56 +65,58 @@
         }}/pins.py ${closuresJson} > $out
       '';
 
-      # Install nix_closures.bzl, upload the closures to the REAPI CAS (the CAS
-      # must agree with the pinned digests) and index their store paths for
-      # the substituter. Run from the repository root.
+      # Install nix_closures.bzl and upload the closures to the REAPI CAS (the
+      # CAS must agree with the pinned digests). Run from the repository root.
       push-closure = pkgs.writeShellApplication {
         name = "push-closure";
         runtimeInputs = [ remotetool pkgs.python3 ];
         text = ''
           install -m 644 ${closure-pins} nix_closures.bzl
-          exec python3 ${./nix}/push_closure.py .nix-buck/index ${closuresJson}
+          exec python3 ${./nix}/push_closure.py ${closuresJson}
         '';
       };
 
-      python = pkgs.python3.withPackages (p: [ p.cryptography ]);
-
-      # A Nix binary cache in front of the CAS: every indexed store path (the
-      # relocated closures and published buck2 outputs) by digest. Keys and
-      # the index live in .nix-buck/. Run from the repository root.
-      substituter = pkgs.writeShellApplication {
-        name = "substituter";
-        runtimeInputs = [ python remotetool pkgs.nix ];
+      # Build buck2 targets, add them and their closures to the static binary
+      # cache in .nix-buck/cache, and pin their digests in buck2-pins.json.
+      # The signing key is .nix-buck/secret-key; Nix needs .nix-buck/public-key.
+      # Run from the repository root.
+      publish = pkgs.writeShellApplication {
+        name = "publish";
+        runtimeInputs = [ (pkgs.python3.withPackages (p: [ p.cryptography ])) pkgs.buck2 pkgs.nix ];
         text = ''
-          mkdir -p .nix-buck/index
           if [ ! -e .nix-buck/secret-key ]; then
+            mkdir -p .nix-buck
             nix key generate-secret --key-name nix-buck-1 > .nix-buck/secret-key
             nix key convert-secret-to-public < .nix-buck/secret-key > .nix-buck/public-key
           fi
-          exec python3 ${./nix}/substituter.py --index .nix-buck/index \
-            --secret-key .nix-buck/secret-key "$@"
+          exec python3 ${./nix}/publish.py .nix-buck/cache .nix-buck/secret-key \
+            buck2-pins.json ${closuresJson} "$@"
         '';
       };
 
-      # Build buck2 targets, index them for the substituter and pin their
-      # digests in buck2-pins.json.
-      publish = pkgs.writeShellApplication {
-        name = "publish";
-        runtimeInputs = [ pkgs.python3 remotetool pkgs.buck2 ];
+      # Serve the static cache over HTTP, which fetchClosure requires. Any
+      # static file server does; in production, the bucket or CDN it is
+      # copied to. Run from the repository root.
+      serve-cache = pkgs.writeShellApplication {
+        name = "serve-cache";
+        runtimeInputs = [ pkgs.python3 ];
         text = ''
-          exec python3 ${./nix}/publish.py .nix-buck/index buck2-pins.json "$@"
+          exec python3 -m http.server --bind 0.0.0.0 --directory .nix-buck/cache 8090
         '';
       };
 
       # The gcc hello reports on: the original, which no machine here has.
       nixGcc = "/nix/store/${gcc-closure.originals.gcc}";
 
-      buck2 = import ./nix/buck2.nix { substituter = "http://127.0.0.1:8090"; };
+      # Where published outputs are read from: the cache publish writes, as
+      # `nix run .#serve-cache` serves it. Wherever it is copied to, this is
+      # that URL instead.
+      buck2 = import ./nix/buck2.nix { cache = "http://127.0.0.1:8090"; };
     in {
       lib.buck2 = buck2;
 
       packages.${system} = {
-        inherit gcc-closure closure-pins remotetool push-closure substituter publish;
+        inherit gcc-closure closure-pins remotetool push-closure publish serve-cache;
         zlib-closure = closures.zlib;
         buck2 = pkgs.buck2;
         host-vm = self.nixosConfigurations.host.config.system.build.vm;
@@ -125,7 +127,7 @@
 
       # Published buck2 outputs as store paths (`nix build .#hello`), pinned by
       # digest in buck2-pins.json, which `nix run .#publish` writes.
-      # Evaluation never runs buck2; it asks the substituter. They are paths,
+      # Evaluation never runs buck2; it reads the binary cache. They are paths,
       # not derivations, hence legacyPackages.
       legacyPackages.${system} = builtins.mapAttrs
         (name: digest: buck2.output { inherit name digest; })

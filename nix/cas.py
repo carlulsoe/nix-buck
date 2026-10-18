@@ -1,6 +1,5 @@
-"""The REAPI CAS through remotetool, as push-closure, publish and the
-substituter use it. The endpoint is $CAS (default 127.0.0.1:50051),
-instance "main".
+"""The REAPI CAS through remotetool, as push-closure uses it. The endpoint
+is $CAS (default 127.0.0.1:50051), instance "main".
 """
 
 import json
@@ -27,7 +26,3 @@ def upload_dir(path):
             s = json.load(f)
     root = s["RootDigest"]
     return "{}:{}".format(root["Hash"], root["Size"]), s.get("CountCacheMisses", 0)
-
-
-def download_dir(digest, path):
-    remotetool("download_dir", "--digest=" + digest.replace(":", "/"), "--path=" + path)

@@ -1,12 +1,6 @@
-"""Store path helpers shared by the relocator, push-closure, publish and the
-substituter: Nix's base-32, reference scanning, and the substituter's index.
+"""Store path helpers shared by the relocator and publish: Nix's base-32
+and reference scanning."""
 
-The index is a directory with one <hashpart>.json per store path the
-substituter serves: {"path", "digest" (REAPI Directory digest of its
-contents), "references" (basenames)}.
-"""
-
-import json
 import os
 import re
 
@@ -54,29 +48,3 @@ def scan(root, candidates):
             if os.path.islink(path) or name in files:
                 look(path)
     return found
-
-
-def index_entry(index, hashpart):
-    if not re.fullmatch(f"[{NIX32}]{{32}}", hashpart):
-        return None
-    try:
-        with open(os.path.join(index, hashpart + ".json")) as f:
-            entry = json.load(f)
-    except FileNotFoundError:
-        return None
-    if not os.path.basename(entry["path"]).startswith(hashpart + "-"):
-        raise ValueError(f"index entry {hashpart} names {entry['path']}")
-    return entry
-
-
-def add_to_index(index, path, digest, references):
-    """Index a store path. A path already indexed with different contents is
-    an error: one store path, one content."""
-    hashpart = os.path.basename(path)[:32]
-    entry = {"path": path, "digest": digest, "references": sorted(references)}
-    old = index_entry(index, hashpart)
-    if old and old != entry:
-        raise SystemExit(f"{path} is already indexed with other contents:\n  {old}\n  {entry}")
-    os.makedirs(index, exist_ok=True)
-    with open(os.path.join(index, hashpart + ".json"), "w") as f:
-        json.dump(entry, f, indent=2)

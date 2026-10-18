@@ -3,8 +3,9 @@
 # A buck2 output is named by its REAPI Directory digest. Its store path is a
 # function of that digest and its name, computed identically by
 # nix/publish.py, so neither side asks the other. Evaluation never runs
-# buck2: fetchClosure asks the substituter for the pinned path.
-{ substituter }:
+# buck2: fetchClosure reads the pinned path from the binary cache publish
+# writes.
+{ cache }:
 
 rec {
   storePath = { name, digest }:
@@ -19,7 +20,7 @@ rec {
   # output { name = "hello"; digest = "<sha256>:<size>"; }
   output = { name, digest }:
     builtins.fetchClosure {
-      fromStore = substituter;
+      fromStore = cache;
       fromPath = storePath { inherit name digest; };
       inputAddressed = true;
     };

@@ -1,7 +1,7 @@
 # A Nix host on Linux 7.3 that substitutes buck2 outputs and runs them.
 #
 # Its store starts as an erofs image of its own closure with a writable
-# overlay, so whatever it gets beyond that comes through the substituter.
+# overlay, so whatever it gets beyond that comes from a binary cache.
 # At boot it runs /mnt/demo/run.sh, from the container's
 # /var/lib/vms/host-demo, writes out.txt beside it, and powers off.
 { pkgs, modulesPath, ... }:
