@@ -2,7 +2,7 @@
 #
 # A buck2 output is named by its REAPI Directory digest. Its store path is a
 # function of that digest and its name, computed identically by
-# nix/substituter.py, so neither side asks the other. Evaluation never runs
+# nix/publish.py, so neither side asks the other. Evaluation never runs
 # buck2: fetchClosure asks the substituter for the pinned path.
 { substituter }:
 
@@ -16,8 +16,8 @@ rec {
       };
     in "/nix/store/${builtins.substring 0 32 h}-${name}";
 
-  # output { target = "//:hello"; digest = "<sha256>:<size>"; }
-  output = { target, digest, name ? baseNameOf (builtins.replaceStrings [ ":" ] [ "/" ] target) }:
+  # output { name = "hello"; digest = "<sha256>:<size>"; }
+  output = { name, digest }:
     builtins.fetchClosure {
       fromStore = substituter;
       fromPath = storePath { inherit name digest; };

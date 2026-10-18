@@ -1,17 +1,23 @@
-"""Fail if a relocated closure still depends on where it sits.
+"""Fail if a relocated closure still depends on where it sits, or still
+names a store path it was relocated from.
 
 Checks the three strings that pin a nixpkgs output to /nix/store: PT_INTERP,
 RUNPATH and symlinks. Each must be relative and resolve inside the tree.
 Other embedded "/nix/store/" strings (spec strings, configure-time defaults)
 are counted and listed but do not fail the check: they do not stop a binary
-from loading.
+from loading, and they name relocated paths. No original hash may remain.
 
-usage: check-relocatable.py TREE   (TREE contains nix/store/)
+usage: check-relocatable.py TREE ATTRS_JSON
+  TREE contains nix/store/; ATTRS_JSON is the relocating build's structured
+  attrs, whose "closure" lists the originals.
 """
 
+import json
 import os
 import subprocess
 import sys
+
+from storepath import scan
 
 STORE = b"/nix/store/"
 
@@ -29,7 +35,7 @@ def patchelf(flag, path):
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
-def main(tree):
+def main(tree, attrs_file):
     tree = os.path.realpath(tree)
     errors, residual = [], []
     elves = 0
@@ -80,6 +86,11 @@ def main(tree):
                 else:
                     errors.append(f"{rel}: RUNPATH entry not $ORIGIN-relative: {entry}")
 
+    with open(attrs_file) as f:
+        originals = [os.path.basename(p["path"]) for p in json.load(f)["closure"]]
+    for leaked in sorted(scan(os.path.join(tree, "nix", "store"), originals)):
+        errors.append(f"an original store path is still named: {leaked}")
+
     print(f"checked {elves} ELF images under {tree}")
     print(f"{len(residual)} files still embed a /nix/store string (informational):")
     for r in residual:
@@ -93,4 +104,4 @@ def main(tree):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(*sys.argv[1:])

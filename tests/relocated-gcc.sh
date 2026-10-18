@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compile and run hello.c with a relocated gcc closure copied to a directory
+# Compile and run hello with a relocated gcc closure copied to a directory
 # it was never built for, on a machine whose store lacks that gcc.
 #
 # With Linux 7.3 and the nix_origin binfmt_misc handler registered, the
@@ -9,7 +9,9 @@
 # found first on the -B path. RUNPATH $ORIGIN resolution, header and crt
 # lookup, and linking run for real either way.
 #
-# usage: relocated-gcc.sh CLOSURE_DIR HELLO_C   (CLOSURE_DIR contains nix/store)
+# usage: relocated-gcc.sh CLOSURE_DIR SRC_DIR NIX_GCC
+#   CLOSURE_DIR contains nix/store; SRC_DIR has hello.c and report.c;
+#   NIX_GCC is the store path hello reports on (nixpkgs' gcc).
 set -eu
 
 root=$(mktemp -d)/some/unrelated/place
@@ -27,8 +29,8 @@ headers=$(echo "$S"/*-linux-headers-7.2)
 ldso=$glibc/lib/ld-linux-x86-64.so.2
 gcc_inc=$gcc/lib/gcc/x86_64-unknown-linux-gnu/16.2.0
 
-test ! -e "/nix/store/$(basename "$gcc")" ||
-  { echo "this machine already has $(basename "$gcc") in its store" >&2; exit 1; }
+test ! -e "$3" ||
+  { echo "this machine already has $3 in its store" >&2; exit 1; }
 
 if [ -e /proc/sys/fs/binfmt_misc/nix-origin ]; then
   echo "--- kernel resolves \$ORIGIN in PT_INTERP: exec'ing tools directly"
@@ -55,8 +57,8 @@ $run "$gcc/bin/gcc" $via -B "$binutils/bin/" -B "$glibc/lib/" \
   -L "$glibc/lib" -L "$gcc_lib/lib" \
   -Wl,--dynamic-linker="\$ORIGIN/$glibc_rel/ld-linux-x86-64.so.2" \
   -Wl,-rpath,"\$ORIGIN/$glibc_rel:\$ORIGIN/$gcc_lib_rel" \
-  -DNIX_GCC="\"/nix/store/$(basename "$gcc")\"" \
-  -o "$out/hello" "$2"
+  -DNIX_GCC="\"$3\"" -I "$2" \
+  -o "$out/hello" "$2/hello.c" "$2/report.c"
 
 echo "--- hello's loader strings"
 $run "$binutils/bin/readelf" -lW "$out/hello" | grep -o 'program interpreter: [^]]*'

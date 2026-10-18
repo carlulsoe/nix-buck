@@ -1,54 +1,28 @@
 """A Nix binary cache backed by a REAPI CAS.
 
 Nix asks a substituter for /<hashpart>.narinfo and then for the NAR it names.
-For buck2 outputs that were published (an index entry naming the REAPI
-Directory digest, store name and references), the tree is read from the CAS
-by digest, serialized as a NAR and served with a signed narinfo. Everything
-else, such as the glibc a buck2 binary refers to, is proxied to an upstream
-cache, so one substituter serves the whole closure.
+For every store path in the index (the relocated closures, by push-closure,
+and published buck2 outputs, by publish), the tree is read from the CAS by
+its Directory digest, serialized as a NAR and served with a signed narinfo.
+Nothing else is served: an indexed path's references are indexed too.
 
-The store path of a buck2 output is a function of its digest and name; see
-store_path(). nix/buck2.nix computes the same function in the Nix language.
-
-usage: substituter.py --index DIR --secret-key FILE [--cas HOST:PORT]
-                      [--instance NAME] [--upstream URL] [--port N]
+usage: substituter.py --index DIR --secret-key FILE [--port N]
+  The CAS is $CAS (default 127.0.0.1:50051).
 """
 
 import argparse
 import base64
 import hashlib
 import http.server
-import json
 import os
 import shutil
-import subprocess
 import tempfile
 import threading
-import urllib.error
-import urllib.request
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-NIX32 = "0123456789abcdfghijklmnpqrsvwxyz"
-
-
-def nix32(data: bytes) -> str:
-    """Nix's base-32 encoding (printHash32)."""
-    out = []
-    for n in range((len(data) * 8 - 1) // 5, -1, -1):
-        b = n * 5
-        i, j = b // 8, b % 8
-        c = data[i] >> j
-        if i + 1 < len(data):
-            c |= data[i + 1] << (8 - j)
-        out.append(NIX32[c & 0x1F])
-    return "".join(out)
-
-
-def store_path(digest: str, name: str) -> str:
-    """/nix/store/<hash>-<name> for a REAPI Directory digest "<sha256>:<size>"."""
-    h = nix32(hashlib.sha256(f"buck2-reapi-directory:{digest}:{name}".encode()).digest())
-    return f"/nix/store/{h[:32]}-{name}"
+import cas
+from storepath import STORE, index_entry, nix32
 
 
 def nar(path: str) -> bytes:
@@ -94,59 +68,36 @@ def nar(path: str) -> bytes:
 
 
 class Cache:
-    def __init__(self, args):
-        self.args = args
-        name, key = open(args.secret_key).read().strip().split(":", 1)
+    def __init__(self, index, secret_key):
+        self.index = index
+        name, key = open(secret_key).read().strip().split(":", 1)
         self.key_name = name
         self.key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(key)[:32])
         self.nars = {}
         self.lock = threading.Lock()
 
-    def entry(self, hashpart):
-        try:
-            with open(os.path.join(self.args.index, hashpart + ".json")) as f:
-                entry = json.load(f)
-        except FileNotFoundError:
-            return None
-        path = store_path(entry["digest"], entry["name"])
-        if not path.startswith(f"/nix/store/{hashpart}-"):
-            raise ValueError(f"index entry {hashpart} does not match its digest")
-        return path, entry
-
-    def fetch_nar(self, hashpart, digest):
+    def nar(self, entry):
         """Read the tree out of the CAS by digest and archive it."""
         with self.lock:
-            if hashpart in self.nars:
-                return self.nars[hashpart]
-            tmp = tempfile.mkdtemp()
-            try:
-                out = os.path.join(tmp, "out")
-                subprocess.run([
-                    "remotetool", "--operation=download_dir", f"--service={self.args.cas}",
-                    "--service_no_security", f"--instance={self.args.instance}",
-                    f"--digest={digest.replace(':', '/')}", f"--path={out}",
-                    "--alsologtostderr=false",
-                ], check=True)
-                data = nar(out)
-            finally:
-                shutil.rmtree(tmp)
-            self.nars[hashpart] = data
-            return data
+            if entry["digest"] not in self.nars:
+                tmp = tempfile.mkdtemp()
+                try:
+                    out = os.path.join(tmp, "out")
+                    cas.download_dir(entry["digest"], out)
+                    self.nars[entry["digest"]] = nar(out)
+                finally:
+                    shutil.rmtree(tmp)
+            return self.nars[entry["digest"]]
 
-    def narinfo(self, hashpart):
-        found = self.entry(hashpart)
-        if not found:
-            return None
-        path, entry = found
-        data = self.fetch_nar(hashpart, entry["digest"])
+    def narinfo(self, entry):
+        data = self.nar(entry)
+        path, refs = entry["path"], entry["references"]
         nar_hash = "sha256:" + nix32(hashlib.sha256(data).digest())
-        refs = sorted(entry["references"])
-        fingerprint = ";".join(
-            ["1", path, nar_hash, str(len(data)), ",".join("/nix/store/" + r for r in refs)])
+        fingerprint = ";".join(["1", path, nar_hash, str(len(data)), ",".join(STORE + r for r in refs)])
         sig = base64.b64encode(self.key.sign(fingerprint.encode())).decode()
         return "".join(f"{k}: {v}\n" for k, v in [
             ("StorePath", path),
-            ("URL", f"nar/{hashpart}.nar"),
+            ("URL", f"nar/{os.path.basename(path)[:32]}.nar"),
             ("Compression", "none"),
             ("NarHash", nar_hash),
             ("NarSize", len(data)),
@@ -165,28 +116,19 @@ def handler(cache):
             if self.command != "HEAD":
                 self.wfile.write(body)
 
-        def proxy(self):
-            req = urllib.request.Request(cache.args.upstream + self.path, method=self.command)
-            try:
-                with urllib.request.urlopen(req) as r:
-                    self.reply(r.status, r.read(), r.headers.get("Content-Type", "text/plain"))
-            except urllib.error.HTTPError as e:
-                self.reply(e.code)
-
         def do_GET(self):
             p = self.path.lstrip("/")
             if p == "nix-cache-info":
                 return self.reply(200, b"StoreDir: /nix/store\nWantMassQuery: 0\nPriority: 30\n")
-            if p.endswith(".narinfo"):
-                body = cache.narinfo(p[: -len(".narinfo")])
-                return self.reply(200, body, "text/x-nix-narinfo") if body else self.proxy()
-            if p.startswith("nar/") and p.endswith(".nar"):
-                found = cache.entry(p[len("nar/"): -len(".nar")])
-                if found:
-                    hashpart = os.path.basename(found[0])[:32]
-                    return self.reply(200, cache.fetch_nar(hashpart, found[1]["digest"]),
-                                      "application/x-nix-nar")
-            return self.proxy()
+            for suffix, prefix, serve, ctype in [
+                (".narinfo", "", cache.narinfo, "text/x-nix-narinfo"),
+                (".nar", "nar/", cache.nar, "application/x-nix-nar"),
+            ]:
+                if p.startswith(prefix) and p.endswith(suffix):
+                    entry = index_entry(cache.index, p[len(prefix):-len(suffix)])
+                    if entry:
+                        return self.reply(200, serve(entry), ctype)
+            return self.reply(404)
 
         do_HEAD = do_GET
 
@@ -197,13 +139,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--index", required=True)
     ap.add_argument("--secret-key", required=True)
-    ap.add_argument("--cas", default="127.0.0.1:50051")
-    ap.add_argument("--instance", default="main")
-    ap.add_argument("--upstream", default="https://cache.nixos.org")
     ap.add_argument("--port", type=int, default=8090)
     args = ap.parse_args()
-    server = http.server.ThreadingHTTPServer(("0.0.0.0", args.port), handler(Cache(args)))
-    print(f"serving {args.index} from {args.cas} on :{args.port}", flush=True)
+    server = http.server.ThreadingHTTPServer(("0.0.0.0", args.port), handler(Cache(args.index, args.secret_key)))
+    print(f"serving {args.index} from {cas.CAS} on :{args.port}", flush=True)
     server.serve_forever()
 
 
