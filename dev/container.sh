@@ -17,6 +17,7 @@ max-jobs = auto
 cores = 0
 sandbox = false
 filter-syscalls = false
+system-features = kvm nixos-test big-parallel benchmark
 CONF
     git config --global --add safe.directory /work'
 fi

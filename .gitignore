@@ -1,3 +1,5 @@
 result*
 .tmp-closure/
 buck-out/
+.tmp-*
+__pycache__/
