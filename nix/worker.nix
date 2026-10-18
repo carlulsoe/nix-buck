@@ -24,12 +24,14 @@ let
   # NativeLink runs every action as `sandbox ARGV...` in the action's input
   # root. Only that directory is visible, at the same path, with private
   # /proc, /dev and /tmp: no /nix/store, /bin, /usr or /etc, no other action
-  # or the CAS, no network. An action can use only what it declared.
+  # or the CAS, no network. An action can use only what it declared. It
+  # keeps no capabilities: NativeLink runs as root, and a root caller's
+  # capabilities would let it mount its way back out.
   sandbox = pkgs.writeShellScript "nativelink-sandbox" ''
     root=$(pwd)
     exec ${pkgs.bubblewrap}/bin/bwrap \
       --unshare-pid --unshare-net --unshare-ipc --unshare-uts --unshare-cgroup \
-      --die-with-parent --new-session \
+      --die-with-parent --new-session --cap-drop ALL \
       --bind "$root" "$root" --chdir "$root" \
       --proc /proc --dev /dev --tmpfs /tmp \
       -- "$@"

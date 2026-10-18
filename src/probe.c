@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <sys/mount.h>
 #include <unistd.h>
 
 // Paths every worker has and no action should see: its store, its shell
@@ -14,11 +15,22 @@ int main(void) {
     printf("%s: %s\n", worker[i], access(worker[i], F_OK) == 0 ? "visible" : "hidden");
 
   // The network: interfaces are the /proc/net/dev lines with a colon.
-  FILE *dev = fopen("/proc/net/dev", "r");
+  FILE *f = fopen("/proc/net/dev", "r");
   char line[512];
   int interfaces = 0;
-  while (dev && fgets(line, sizeof(line), dev))
+  while (f && fgets(line, sizeof(line), f))
     interfaces += strchr(line, ':') && !strstr(line, " lo:");
-  printf("network interfaces besides lo: %d\n", dev ? interfaces : -1);
+  printf("network interfaces besides lo: %d\n", f ? interfaces : -1);
+  if (f)
+    fclose(f);
+
+  // Privilege: what could get back to the rest of the machine.
+  f = fopen("/proc/self/status", "r");
+  while (f && fgets(line, sizeof(line), f))
+    if (strncmp(line, "CapEff:", 7) == 0)
+      printf("effective capabilities: %s", line + 8);
+  if (f)
+    fclose(f);
+  printf("mount: %s\n", mount("none", "/tmp", "tmpfs", 0, NULL) == 0 ? "allowed" : "denied");
   return 0;
 }

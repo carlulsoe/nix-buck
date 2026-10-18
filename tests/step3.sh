@@ -30,8 +30,11 @@ podman exec nix-buck sh -c '
   grep -q "Commands: 11 (cached: 0, remote: 11, local: 0)" /tmp/step3.out
   buck2 run //:probe-report 2>/dev/null | tee /tmp/step3.probe
   grep -qx "/nix/store: hidden" /tmp/step3.probe
-  if grep -v ": hidden$" /tmp/step3.probe | grep -vx "network interfaces besides lo: 0"; then
-    echo "actions see the worker" >&2; exit 1
+  grep -qx "mount: denied" /tmp/step3.probe
+  grep -qx "effective capabilities:[[:space:]]*0*" /tmp/step3.probe
+  if grep -v ": hidden$" /tmp/step3.probe | grep -vx "network interfaces besides lo: 0" |
+      grep -vx "effective capabilities:[[:space:]]*0*" | grep -vx "mount: denied"; then
+    echo "actions see or can reach the worker" >&2; exit 1
   fi
   gcc=/nix/store/$(nix eval --raw .#gcc-closure.originals.gcc)
   for t in hello zhello; do
