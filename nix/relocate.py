@@ -143,6 +143,8 @@ class Relocator:
         for dirpath, dirs, files in os.walk(self.tree):
             for name in dirs + files:
                 path = os.path.join(dirpath, name)
+                if self.old_hashes.search(name.encode()):
+                    raise SystemExit(f"{path}: an original hash in a file name is not relocated")
                 if os.path.islink(path):
                     self.relink(path)
                 elif name in files:

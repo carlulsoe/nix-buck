@@ -2,7 +2,7 @@
 # pinned by its REAPI Directory digest. Do not edit.
 NIX_CLOSURES = {
     "gcc": {
-        "digest": "7163aeedce907eca32cc9d1be7dac7f43d259a628d83dc094dbca5f60acfa704:164",
+        "digest": "60814fb90cf3ddf2153ee4a120ac7da197eb71cea30d1d2af27b9105da1e6d22:164",
         "originals": {
             "binutils": "y5sgl0vvrpbcwgjwpjs60r1hg0gi7i0n-binutils-2.46",
             "gcc": "5q6bdxkp7lc70gn9mnf4yiybrx8ry5xq-gcc-16.2.0",
@@ -12,125 +12,125 @@ NIX_CLOSURES = {
             "linux-headers": "ggggdaqvaxkimbzx5p6knxr2nlqlqqnl-linux-headers-7.2"
         },
         "references": {
-            "02kzn0sj5i397glxlrf1zwhcv3ida8cb-binutils-2.46-lib": [
-                "02kzn0sj5i397glxlrf1zwhcv3ida8cb-binutils-2.46-lib",
-                "0y84p1pdr1r2zkc9x2la4ingkrr18cp1-zlib-1.3.2",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "021hk1cs4laya4md76byywi4ialig23n-glibc-2.44-25-dev": [
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1y662ml3frww0gb30jqzp04f0mhj4nv2-linux-headers-7.2",
+                "1zf8cj8clamzbydilnrdri33a29pdscs-glibc-2.44-25-bin"
             ],
-            "068yn1mh6630kk6hhjjsjkvaf24xr29i-linux-headers-7.2": [],
-            "08vhzrc3p03b1b4pilp6cff3f8v3pw84-isl-0.20": [
-                "08vhzrc3p03b1b4pilp6cff3f8v3pw84-isl-0.20",
-                "0xl9wzplvqjwj9w42clqkw903xg5gyxx-gmp-6.3.0",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "02ms9ah9aw4daqqxydmjyx6jmpxr6i6z-isl-0.20": [
+                "02ms9ah9aw4daqqxydmjyx6jmpxr6i6z-isl-0.20",
+                "0b8x1lp9y335p1ilph9p4l24rj75yg1c-gmp-6.3.0",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25"
             ],
-            "0kz5mm72q1iz58p9ws3pbp5hqk1s4fnj-mpfr-4.2.2": [
-                "0kz5mm72q1iz58p9ws3pbp5hqk1s4fnj-mpfr-4.2.2",
-                "0xl9wzplvqjwj9w42clqkw903xg5gyxx-gmp-6.3.0",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "04nbqwvy2qhjki5r7r6wkdjp6q90nd9z-binutils-2.46": [
+                "04nbqwvy2qhjki5r7r6wkdjp6q90nd9z-binutils-2.46",
+                "08ifg850s6vnzlsdfyddb9qwxavy574h-zlib-1.3.2",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1rygaidfmfy0zqbcm0kyzv501cs2m2hb-binutils-2.46-lib",
+                "1ziv1qj91s47gwzic179fky01ssna75r-gcc-16.2.0-lib"
             ],
-            "0mcgn8zw9cv2c7116rj0kys8b6sml81w-libidn2-2.3.8": [
-                "0mcgn8zw9cv2c7116rj0kys8b6sml81w-libidn2-2.3.8",
-                "1qg1fjd008rwhwiy78j33n98am4gv51z-libunistring-1.4.2"
+            "05mfkpavvzr7lcij9i9j4k6lxahknfap-gcc-16.2.0-libgcc": [],
+            "08ifg850s6vnzlsdfyddb9qwxavy574h-zlib-1.3.2": [
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25"
             ],
-            "0xl9wzplvqjwj9w42clqkw903xg5gyxx-gmp-6.3.0": [
-                "0xl9wzplvqjwj9w42clqkw903xg5gyxx-gmp-6.3.0",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "0b8x1lp9y335p1ilph9p4l24rj75yg1c-gmp-6.3.0": [
+                "0b8x1lp9y335p1ilph9p4l24rj75yg1c-gmp-6.3.0",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25"
             ],
-            "0y76jy8xq07qzs9l36h7jh70rij1clkh-gcc-16.2.0": [
-                "08vhzrc3p03b1b4pilp6cff3f8v3pw84-isl-0.20",
-                "0kz5mm72q1iz58p9ws3pbp5hqk1s4fnj-mpfr-4.2.2",
-                "0xl9wzplvqjwj9w42clqkw903xg5gyxx-gmp-6.3.0",
-                "0y76jy8xq07qzs9l36h7jh70rij1clkh-gcc-16.2.0",
-                "0y84p1pdr1r2zkc9x2la4ingkrr18cp1-zlib-1.3.2",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25",
-                "16b4jkg6vgvpnvl9wn66j2cn805hph9b-glibc-2.44-25-dev",
-                "1lgxf8n5vs0g1c0dr3z4z0hz9nlm7d2x-libmpc-1.4.1",
-                "1sgby0pq337vkmlfqa5dsnmiix0dc5vk-gcc-16.2.0-lib"
+            "0h13q2hnvrz7apmhbcyqbml33smxwn2q-mpfr-4.2.2": [
+                "0b8x1lp9y335p1ilph9p4l24rj75yg1c-gmp-6.3.0",
+                "0h13q2hnvrz7apmhbcyqbml33smxwn2q-mpfr-4.2.2",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25"
             ],
-            "0y84p1pdr1r2zkc9x2la4ingkrr18cp1-zlib-1.3.2": [
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "0krqa3sjlsakpyqyiag5xka9d3ky0plz-libmpc-1.4.1": [
+                "0b8x1lp9y335p1ilph9p4l24rj75yg1c-gmp-6.3.0",
+                "0h13q2hnvrz7apmhbcyqbml33smxwn2q-mpfr-4.2.2",
+                "0krqa3sjlsakpyqyiag5xka9d3ky0plz-libmpc-1.4.1",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25"
             ],
-            "0yrxjc6jk1j0gf1lb3mx9msdg85blrh3-xgcc-16.2.0-libgcc": [],
-            "11aivgnz09p6hzai47v687iqpsdslxdj-binutils-2.46": [
-                "02kzn0sj5i397glxlrf1zwhcv3ida8cb-binutils-2.46-lib",
-                "0y84p1pdr1r2zkc9x2la4ingkrr18cp1-zlib-1.3.2",
-                "11aivgnz09p6hzai47v687iqpsdslxdj-binutils-2.46",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25",
-                "1sgby0pq337vkmlfqa5dsnmiix0dc5vk-gcc-16.2.0-lib"
+            "19ga91xmpkv22m7avxvs4wlcnqhbxbp1-libidn2-2.3.8": [
+                "19ga91xmpkv22m7avxvs4wlcnqhbxbp1-libidn2-2.3.8",
+                "1f62wvvn29r55qzs676jycvvmd52imfn-libunistring-1.4.2"
             ],
-            "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25": [
-                "0mcgn8zw9cv2c7116rj0kys8b6sml81w-libidn2-2.3.8",
-                "0yrxjc6jk1j0gf1lb3mx9msdg85blrh3-xgcc-16.2.0-libgcc",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25": [
+                "19ga91xmpkv22m7avxvs4wlcnqhbxbp1-libidn2-2.3.8",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1j0jij1rvc1rvc83jqdv1dbrc7mnd2z7-xgcc-16.2.0-libgcc"
             ],
-            "16b4jkg6vgvpnvl9wn66j2cn805hph9b-glibc-2.44-25-dev": [
-                "068yn1mh6630kk6hhjjsjkvaf24xr29i-linux-headers-7.2",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25",
-                "1lfkabljqaj3k5hcwki36935pwlw255i-glibc-2.44-25-bin"
+            "1f62wvvn29r55qzs676jycvvmd52imfn-libunistring-1.4.2": [
+                "1f62wvvn29r55qzs676jycvvmd52imfn-libunistring-1.4.2"
             ],
-            "1cc67760q0an723058b03azg5zdhwjfd-gcc-16.2.0-libgcc": [],
-            "1lfkabljqaj3k5hcwki36935pwlw255i-glibc-2.44-25-bin": [
-                "0yrxjc6jk1j0gf1lb3mx9msdg85blrh3-xgcc-16.2.0-libgcc",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25",
-                "1lfkabljqaj3k5hcwki36935pwlw255i-glibc-2.44-25-bin"
+            "1j0jij1rvc1rvc83jqdv1dbrc7mnd2z7-xgcc-16.2.0-libgcc": [],
+            "1rygaidfmfy0zqbcm0kyzv501cs2m2hb-binutils-2.46-lib": [
+                "08ifg850s6vnzlsdfyddb9qwxavy574h-zlib-1.3.2",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1rygaidfmfy0zqbcm0kyzv501cs2m2hb-binutils-2.46-lib"
             ],
-            "1lgxf8n5vs0g1c0dr3z4z0hz9nlm7d2x-libmpc-1.4.1": [
-                "0kz5mm72q1iz58p9ws3pbp5hqk1s4fnj-mpfr-4.2.2",
-                "0xl9wzplvqjwj9w42clqkw903xg5gyxx-gmp-6.3.0",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25",
-                "1lgxf8n5vs0g1c0dr3z4z0hz9nlm7d2x-libmpc-1.4.1"
+            "1xbis0j5fsn6bdnf66gccajci6s3dikh-gcc-16.2.0": [
+                "021hk1cs4laya4md76byywi4ialig23n-glibc-2.44-25-dev",
+                "02ms9ah9aw4daqqxydmjyx6jmpxr6i6z-isl-0.20",
+                "08ifg850s6vnzlsdfyddb9qwxavy574h-zlib-1.3.2",
+                "0b8x1lp9y335p1ilph9p4l24rj75yg1c-gmp-6.3.0",
+                "0h13q2hnvrz7apmhbcyqbml33smxwn2q-mpfr-4.2.2",
+                "0krqa3sjlsakpyqyiag5xka9d3ky0plz-libmpc-1.4.1",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1xbis0j5fsn6bdnf66gccajci6s3dikh-gcc-16.2.0",
+                "1ziv1qj91s47gwzic179fky01ssna75r-gcc-16.2.0-lib"
             ],
-            "1qg1fjd008rwhwiy78j33n98am4gv51z-libunistring-1.4.2": [
-                "1qg1fjd008rwhwiy78j33n98am4gv51z-libunistring-1.4.2"
+            "1y662ml3frww0gb30jqzp04f0mhj4nv2-linux-headers-7.2": [],
+            "1zf8cj8clamzbydilnrdri33a29pdscs-glibc-2.44-25-bin": [
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1j0jij1rvc1rvc83jqdv1dbrc7mnd2z7-xgcc-16.2.0-libgcc",
+                "1zf8cj8clamzbydilnrdri33a29pdscs-glibc-2.44-25-bin"
             ],
-            "1sgby0pq337vkmlfqa5dsnmiix0dc5vk-gcc-16.2.0-lib": [
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25",
-                "1cc67760q0an723058b03azg5zdhwjfd-gcc-16.2.0-libgcc",
-                "1sgby0pq337vkmlfqa5dsnmiix0dc5vk-gcc-16.2.0-lib"
+            "1ziv1qj91s47gwzic179fky01ssna75r-gcc-16.2.0-lib": [
+                "05mfkpavvzr7lcij9i9j4k6lxahknfap-gcc-16.2.0-libgcc",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1ziv1qj91s47gwzic179fky01ssna75r-gcc-16.2.0-lib"
             ]
         },
         "roots": {
-            "binutils": "11aivgnz09p6hzai47v687iqpsdslxdj-binutils-2.46",
-            "gcc": "0y76jy8xq07qzs9l36h7jh70rij1clkh-gcc-16.2.0",
-            "gcc-lib": "1sgby0pq337vkmlfqa5dsnmiix0dc5vk-gcc-16.2.0-lib",
-            "glibc": "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25",
-            "glibc-dev": "16b4jkg6vgvpnvl9wn66j2cn805hph9b-glibc-2.44-25-dev",
-            "linux-headers": "068yn1mh6630kk6hhjjsjkvaf24xr29i-linux-headers-7.2"
+            "binutils": "04nbqwvy2qhjki5r7r6wkdjp6q90nd9z-binutils-2.46",
+            "gcc": "1xbis0j5fsn6bdnf66gccajci6s3dikh-gcc-16.2.0",
+            "gcc-lib": "1ziv1qj91s47gwzic179fky01ssna75r-gcc-16.2.0-lib",
+            "glibc": "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+            "glibc-dev": "021hk1cs4laya4md76byywi4ialig23n-glibc-2.44-25-dev",
+            "linux-headers": "1y662ml3frww0gb30jqzp04f0mhj4nv2-linux-headers-7.2"
         }
     },
     "zlib": {
-        "digest": "c05f4248ce22fce26d49e8c0ae984965d681f1388f30eea0f4f1c9366e0c4de8:164",
+        "digest": "6c1374804f32a227a48339afe14df3fa6ebe76ad501fc23f5aabf3e2eb457be2:164",
         "originals": {
             "zlib": "wgw25d181h0qks7qsfp1bh7c5nd3f0s7-zlib-1.3.2",
             "zlib-dev": "879xd5x23lfd4l93jz71yaz06wa15yc1-zlib-1.3.2-dev"
         },
         "references": {
-            "0mcgn8zw9cv2c7116rj0kys8b6sml81w-libidn2-2.3.8": [
-                "0mcgn8zw9cv2c7116rj0kys8b6sml81w-libidn2-2.3.8",
-                "1qg1fjd008rwhwiy78j33n98am4gv51z-libunistring-1.4.2"
+            "08ifg850s6vnzlsdfyddb9qwxavy574h-zlib-1.3.2": [
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25"
             ],
-            "0y84p1pdr1r2zkc9x2la4ingkrr18cp1-zlib-1.3.2": [
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "0ccjqp9ar3ff5c9fx2rwxdknwrlfnk82-zlib-1.3.2-static": [],
+            "19ga91xmpkv22m7avxvs4wlcnqhbxbp1-libidn2-2.3.8": [
+                "19ga91xmpkv22m7avxvs4wlcnqhbxbp1-libidn2-2.3.8",
+                "1f62wvvn29r55qzs676jycvvmd52imfn-libunistring-1.4.2"
             ],
-            "0yrxjc6jk1j0gf1lb3mx9msdg85blrh3-xgcc-16.2.0-libgcc": [],
-            "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25": [
-                "0mcgn8zw9cv2c7116rj0kys8b6sml81w-libidn2-2.3.8",
-                "0yrxjc6jk1j0gf1lb3mx9msdg85blrh3-xgcc-16.2.0-libgcc",
-                "14prp5rplvjsya377xiym45vmwqprwan-glibc-2.44-25"
+            "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25": [
+                "19ga91xmpkv22m7avxvs4wlcnqhbxbp1-libidn2-2.3.8",
+                "1cvyn1siy2qz9isi4lkvxlcrpsj024lx-glibc-2.44-25",
+                "1j0jij1rvc1rvc83jqdv1dbrc7mnd2z7-xgcc-16.2.0-libgcc"
             ],
-            "1aagrrdhpa70fcrl4p58m4zva509avl0-zlib-1.3.2-static": [],
-            "1bv2zgcpfjcwss7gi7fgab9y0s4nmpwg-zlib-1.3.2-dev": [
-                "0y84p1pdr1r2zkc9x2la4ingkrr18cp1-zlib-1.3.2",
-                "1aagrrdhpa70fcrl4p58m4zva509avl0-zlib-1.3.2-static",
-                "1bv2zgcpfjcwss7gi7fgab9y0s4nmpwg-zlib-1.3.2-dev"
+            "1f62wvvn29r55qzs676jycvvmd52imfn-libunistring-1.4.2": [
+                "1f62wvvn29r55qzs676jycvvmd52imfn-libunistring-1.4.2"
             ],
-            "1qg1fjd008rwhwiy78j33n98am4gv51z-libunistring-1.4.2": [
-                "1qg1fjd008rwhwiy78j33n98am4gv51z-libunistring-1.4.2"
+            "1j0jij1rvc1rvc83jqdv1dbrc7mnd2z7-xgcc-16.2.0-libgcc": [],
+            "1yxifrhjppd6mk56fykb9ly1h5ndh1wf-zlib-1.3.2-dev": [
+                "08ifg850s6vnzlsdfyddb9qwxavy574h-zlib-1.3.2",
+                "0ccjqp9ar3ff5c9fx2rwxdknwrlfnk82-zlib-1.3.2-static",
+                "1yxifrhjppd6mk56fykb9ly1h5ndh1wf-zlib-1.3.2-dev"
             ]
         },
         "roots": {
-            "zlib": "0y84p1pdr1r2zkc9x2la4ingkrr18cp1-zlib-1.3.2",
-            "zlib-dev": "1bv2zgcpfjcwss7gi7fgab9y0s4nmpwg-zlib-1.3.2-dev"
+            "zlib": "08ifg850s6vnzlsdfyddb9qwxavy574h-zlib-1.3.2",
+            "zlib-dev": "1yxifrhjppd6mk56fykb9ly1h5ndh1wf-zlib-1.3.2-dev"
         }
     }
 }

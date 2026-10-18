@@ -28,8 +28,9 @@ def nix32(data: bytes) -> str:
 
 
 def scan(root, candidates):
-    """The basenames in `candidates` whose hash part occurs in a file or
-    symlink target under root: references, found the way Nix finds them."""
+    """The basenames in `candidates` whose hash part occurs under root, in a
+    file, a symlink target or an entry name: references, found the way Nix
+    finds them in a NAR."""
     if not candidates:
         return set()
     by_hash = {c[:32].encode(): c for c in candidates}
@@ -49,6 +50,7 @@ def scan(root, candidates):
     for dirpath, dirs, files in os.walk(root):
         for name in dirs + files:
             path = os.path.join(dirpath, name)
+            found.update(by_hash[m.group()] for m in pattern.finditer(name.encode()))
             if os.path.islink(path) or name in files:
                 look(path)
     return found
