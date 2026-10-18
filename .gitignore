@@ -3,3 +3,4 @@ result*
 buck-out/
 .tmp-*
 __pycache__/
+.nix-buck/

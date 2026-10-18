@@ -54,17 +54,61 @@
           cat gcc_closure.bzl
         '';
       };
+
+      python = pkgs.python3.withPackages (p: [ p.cryptography ]);
+
+      # A Nix binary cache in front of the CAS: published buck2 outputs by
+      # digest, everything else proxied to cache.nixos.org. Keys and the
+      # index live in .nix-buck/. Run from the repository root.
+      substituter = pkgs.writeShellApplication {
+        name = "substituter";
+        runtimeInputs = [ python remotetool pkgs.nix ];
+        text = ''
+          mkdir -p .nix-buck/index
+          if [ ! -e .nix-buck/secret-key ]; then
+            nix key generate-secret --key-name nix-buck-1 > .nix-buck/secret-key
+            nix key convert-secret-to-public < .nix-buck/secret-key > .nix-buck/public-key
+          fi
+          exec python3 ${./nix/substituter.py} --index .nix-buck/index \
+            --secret-key .nix-buck/secret-key "$@"
+        '';
+      };
+
+      # Build buck2 targets and add them to the substituter's index.
+      publish = pkgs.writeShellApplication {
+        name = "publish";
+        runtimeInputs = [ python remotetool pkgs.buck2 ];
+        text = ''
+          # Directory reference: publish.py imports substituter.py beside it.
+          exec python3 ${./nix}/publish.py .nix-buck/index "$@"
+        '';
+      };
+
+      buck2 = import ./nix/buck2.nix { substituter = "http://127.0.0.1:8090"; };
     in {
+      lib.buck2 = buck2;
+
       packages.${system} = {
-        inherit gcc-closure remotetool push-closure;
+        inherit gcc-closure remotetool push-closure substituter publish;
         buck2 = pkgs.buck2;
+        host-vm = self.nixosConfigurations.host.config.system.build.vm;
+
+        # A buck2 target as a store path, pinned by its digest (printed by
+        # `nix run .#publish -- //:hello`). Evaluation never runs buck2.
+        hello = buck2.output {
+          target = "//:hello";
+          digest = "804c0a3b10f0ccb38c350ea5a0a6c574d8d8f9e8f6d9fa8c3800dd14c1011ba5:77";
+        };
         default = gcc-closure;
-        # Boot with: QEMU_NET_OPTS=... result/bin/run-nix-origin-worker-vm
+        # Boot with dev/vm.sh worker.
         worker-vm = self.nixosConfigurations.worker.config.system.build.vm;
       };
 
       nixosConfigurations.worker = nixpkgs.lib.nixosSystem {
         modules = [ ./nix/worker.nix { nixpkgs.hostPlatform = system; } ];
+      };
+      nixosConfigurations.host = nixpkgs.lib.nixosSystem {
+        modules = [ ./nix/host.nix { nixpkgs.hostPlatform = system; } ];
       };
 
       # Boot the worker and compile hello.c on it with the relocated closure,

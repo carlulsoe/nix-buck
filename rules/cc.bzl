@@ -4,6 +4,14 @@ NixCcToolchainInfo = provider(fields = {
     "closure": provider_field(typing.Any),
 })
 
+# Shaped like a store path for Nix: the package directory, its name, and the
+# store paths it refers to (the ones put in its RUNPATH and PT_INTERP).
+NixStorePathInfo = provider(fields = {
+    "name": provider_field(str),
+    "out": provider_field(typing.Any),
+    "references": provider_field(list[str]),
+})
+
 _ROLES = ["gcc", "gcc-lib", "binutils", "glibc", "glibc-dev", "linux-headers"]
 _TRIPLE = "x86_64-unknown-linux-gnu"
 _LOADER = "ld-linux-x86-64.so.2"
@@ -99,9 +107,20 @@ def _cc_binary_impl(ctx: AnalysisContext) -> list[Provider]:
     ]
     exe = out.project("bin/" + name)
 
+    # What Nix needs besides the bytes: the name and the references, known
+    # here because this rule put them in RUNPATH. `nix run .#publish` pairs
+    # it with the output's digest; that pair is the narinfo.
+    store = NixStorePathInfo(
+        name = name,
+        out = out,
+        references = [closure.roots[role] for role in _RUNTIME],
+    )
+    meta = ctx.actions.write_json(name + ".nix.json", {"name": store.name, "references": store.references})
+
     return [
-        DefaultInfo(default_output = out),
+        DefaultInfo(default_output = out, sub_targets = {"nix": [DefaultInfo(default_output = meta)]}),
         RunInfo(args = cmd_args(exe, hidden = runtime)),
+        store,
     ]
 
 cc_binary = rule(
