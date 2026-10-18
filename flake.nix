@@ -42,9 +42,22 @@
           EOF
         '';
       gcc-closure = relocatableClosure "gcc-closure" gccRoots;
+      remotetool = pkgs.callPackage ./nix/remotetool.nix { };
+
+      # Upload the relocated closure to the REAPI CAS and pin its digest for
+      # buck2 in gcc_closure.bzl. Run from the repository root.
+      push-closure = pkgs.writeShellApplication {
+        name = "push-closure";
+        runtimeInputs = [ remotetool pkgs.python3 ];
+        text = ''
+          python3 ${./nix/push_closure.py} ${gcc-closure} gcc_closure.bzl
+          cat gcc_closure.bzl
+        '';
+      };
     in {
       packages.${system} = {
-        inherit gcc-closure;
+        inherit gcc-closure remotetool push-closure;
+        buck2 = pkgs.buck2;
         default = gcc-closure;
         # Boot with: QEMU_NET_OPTS=... result/bin/run-nix-origin-worker-vm
         worker-vm = self.nixosConfigurations.worker.config.system.build.vm;

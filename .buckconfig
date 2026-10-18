@@ -1,0 +1,21 @@
+[cells]
+root = .
+rules = rules
+
+[buildfile]
+name = BUCK
+
+[build]
+execution_platforms = root//platforms:remote
+
+[buck2]
+digest_algorithms = SHA256
+
+# NativeLink on the worker VM, forwarded to 127.0.0.1 inside the nix-buck
+# container.
+[buck2_re_client]
+engine_address = grpc://127.0.0.1:50051
+cas_address = grpc://127.0.0.1:50051
+action_cache_address = grpc://127.0.0.1:50051
+instance_name = main
+tls = false

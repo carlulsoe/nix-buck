@@ -1,0 +1,3 @@
+load("@rules//:platforms.bzl", "remote_platform")
+
+remote_platform(name = "remote")
