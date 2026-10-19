@@ -56,6 +56,17 @@
           zlib = pkgs.zlib;
           zlib-dev = pkgs.zlib.dev;
         };
+        # A library with a deep closure: openssl, nghttp2/3, ngtcp2, brotli,
+        # zstd, krb5, libssh2, libpsl, c-ares, and scripts with shebangs.
+        curl = relocate "curl-closure" {
+          curl = pkgs.curl.out;
+          curl-dev = pkgs.curl.dev;
+          # Already in curl's closure; roots so BUCK can name them.
+          openssl = pkgs.openssl.out;
+          openssl-dev = pkgs.openssl.dev;
+          libpsl = pkgs.libpsl.out;
+          libpsl-dev = pkgs.libpsl.dev;
+        };
         # The shell actions run under: workers have none of their own.
         bash = relocate "bash-closure" { bash = pkgs.bash; };
       };

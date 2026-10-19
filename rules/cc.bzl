@@ -16,6 +16,8 @@ NixCcInfo = provider(fields = {
     "runtime": provider_field(list[typing.Any]),
     # Every closure involved: a binary's references are among their paths.
     "closures": provider_field(list[typing.Any]),
+    # Whether any of it is C++, so the binary links with g++ (libstdc++).
+    "cxx": provider_field(bool),
 })
 
 _ROLES = ["gcc", "gcc-lib", "binutils", "glibc", "glibc-dev", "linux-headers"]
@@ -37,21 +39,32 @@ nix_cc_toolchain = rule(
     attrs = {"closure": attrs.dep(providers = [NixClosureInfo])},
 )
 
-def _gcc(closure: NixClosureInfo) -> cmd_args:
+_CXX_EXTS = [".cc", ".cpp", ".cxx"]
+
+def _is_cxx(src: Artifact) -> bool:
+    return src.extension in _CXX_EXTS
+
+def _gcc(closure: NixClosureInfo, cxx: bool) -> cmd_args:
     return cmd_args(
-        store_path(closure, "gcc", "bin/gcc"),
+        store_path(closure, "gcc", "bin/g++" if cxx else "bin/gcc"),
         # as and ld come from binutils, never from the worker's PATH.
         cmd_args(store_path(closure, "binutils", "bin"), format = "-B{}/"),
         # The whole tree is an input: cc1, as and ld load libraries from siblings.
         hidden = closure.tree,
     )
 
-def _compile_flags(closure: NixClosureInfo) -> cmd_args:
+def _compile_flags(closure: NixClosureInfo, cxx: bool) -> cmd_args:
     gcc_version = closure.roots["gcc"].split("-gcc-")[1]
     gcc_inc = "lib/gcc/{}/{}/".format(_TRIPLE, gcc_version)
+    cxx_inc = "include/c++/" + gcc_version
     return cmd_args(
         # Only headers from the closure, never from the machine compiling.
         "-nostdinc",
+        # libstdc++'s headers come first: they #include_next the C ones.
+        [
+            cmd_args(store_path(closure, "gcc", cxx_inc + sub), format = "-isystem{}")
+            for sub in ["", "/" + _TRIPLE, "/backward"]
+        ] if cxx else [],
         cmd_args(store_path(closure, "gcc", gcc_inc + "include"), format = "-isystem{}"),
         cmd_args(store_path(closure, "gcc", gcc_inc + "include-fixed"), format = "-isystem{}"),
         cmd_args(store_path(closure, "glibc-dev", "include"), format = "-isystem{}"),
@@ -83,14 +96,16 @@ def _merge(deps: list[Dependency]) -> NixCcInfo:
         link = cmd_args([i.link for i in infos]),
         runtime = [r for i in infos for r in i.runtime],
         closures = [c for i in infos for c in i.closures],
+        cxx = any([i.cxx for i in infos]),
     )
 
 def _compile(ctx: AnalysisContext, closure: NixClosureInfo, flags: cmd_args) -> list[Artifact]:
     objs = []
     for src in ctx.attrs.srcs:
         obj = ctx.actions.declare_output("objs", src.short_path + ".o")
+        cxx = _is_cxx(src)
         ctx.actions.run(
-            cmd_args(_gcc(closure), "-c", _compile_flags(closure), flags, "-o", obj.as_output(), src),
+            cmd_args(_gcc(closure, cxx), "-c", _compile_flags(closure, cxx), flags, "-o", obj.as_output(), src),
             category = "cc_compile",
             identifier = src.short_path,
         )
@@ -122,10 +137,12 @@ def _cc_library_impl(ctx: AnalysisContext) -> list[Provider]:
             link = cmd_args(archive, deps.link),
             runtime = deps.runtime,
             closures = deps.closures,
+            cxx = deps.cxx or any([_is_cxx(s) for s in ctx.attrs.srcs]),
         ),
     ]
 
 # A static library built by buck2. Its headers are included by basename.
+# Sources ending in .cc, .cpp or .cxx are C++.
 cc_library = rule(
     impl = _cc_library_impl,
     attrs = {
@@ -149,6 +166,7 @@ def _nix_cc_library_impl(ctx: AnalysisContext) -> list[Provider]:
             ),
             runtime = [struct(closure = closure, base = closure.roots[ctx.attrs.lib])],
             closures = [closure],
+            cxx = False,
         ),
     ]
 
@@ -175,9 +193,20 @@ def _cc_binary_impl(ctx: AnalysisContext) -> list[Provider]:
         runtime.setdefault(r.base, r)
     runtime = runtime.values()
 
+    cxx = deps.cxx or any([_is_cxx(s) for s in ctx.attrs.srcs])
     linked = ctx.actions.declare_output(name + ".linked")
     ctx.actions.run(
-        cmd_args(_gcc(closure), _link_flags(closure, runtime), objs, deps.link, "-o", linked.as_output()),
+        cmd_args(
+            _gcc(closure, cxx),
+            _link_flags(closure, runtime),
+            objs,
+            deps.link,
+            "-o",
+            linked.as_output(),
+            # ld follows each library's $ORIGIN RUNPATH to the libraries it
+            # needs, so their whole closures are inputs, not just lib/.
+            hidden = [c.tree for c in deps.closures],
+        ),
         category = "cc_link",
     )
 
@@ -212,7 +241,10 @@ def _cc_binary_impl(ctx: AnalysisContext) -> list[Provider]:
 
     return [
         DefaultInfo(default_output = out, sub_targets = {"nix": [DefaultInfo(default_output = meta)]}),
-        RunInfo(args = cmd_args(exe, hidden = siblings.values())),
+        # The siblings link into their closures' trees, and a library's
+        # $ORIGIN/../.. resolves through the link, inside its own closure:
+        # those trees are needed whole.
+        RunInfo(args = cmd_args(exe, hidden = siblings.values() + [r.closure.tree for r in runtime])),
     ]
 
 cc_binary = rule(

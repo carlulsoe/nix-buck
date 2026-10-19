@@ -11,6 +11,8 @@ nix_closure(name = "gcc-closure", **NIX_CLOSURES["gcc"])
 
 nix_closure(name = "zlib-closure", **NIX_CLOSURES["zlib"])
 
+nix_closure(name = "curl-closure", **NIX_CLOSURES["curl"])
+
 nix_closure(name = "bash-closure", **NIX_CLOSURES["bash"])
 
 nix_cc_toolchain(name = "cc", closure = ":gcc-closure")
@@ -24,16 +26,46 @@ nix_cc_library(
     libs = ["z"],
 )
 
+# libcurl and two of the libraries in its closure, which curlhello asks
+# about directly.
+nix_cc_library(
+    name = "curl",
+    closure = ":curl-closure",
+    lib = "curl",
+    include = "curl-dev",
+    libs = ["curl"],
+)
+
+nix_cc_library(
+    name = "openssl",
+    closure = ":curl-closure",
+    lib = "openssl",
+    include = "openssl-dev",
+    libs = ["crypto"],
+)
+
+nix_cc_library(
+    name = "libpsl",
+    closure = ":curl-closure",
+    lib = "libpsl",
+    include = "libpsl-dev",
+    libs = ["psl"],
+)
+
 cc_library(name = "report", srcs = ["src/report.c"], hdrs = ["src/report.h"])
 
 cc_binary(name = "hello", srcs = ["src/hello.c"], deps = [":report"])
 
 cc_binary(name = "zhello", srcs = ["src/zhello.c"], deps = [":report", ":zlib"])
 
+cc_binary(name = "curlhello", srcs = ["src/curlhello.cc"], deps = [":report", ":curl", ":openssl", ":libpsl"])
+
 # Run each binary on the worker and keep what it prints.
 run_remote(name = "hello-report", exe = ":hello")
 
 run_remote(name = "zhello-report", exe = ":zhello")
+
+run_remote(name = "curlhello-report", exe = ":curlhello")
 
 # What an action can see of the worker it runs on.
 cc_binary(name = "probe", srcs = ["src/probe.c"])

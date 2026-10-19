@@ -123,6 +123,67 @@ buck2 pins (`nix_closures.bzl`), and `nix flake check` fails when the
 committed copy is stale. The pins and the CAS can no longer drift apart
 silently.
 
+### A closure is a layout for the loader, not for compiled-in paths
+
+`curlhello` (`src/curlhello.cc`) is C++ linked against nixpkgs' libcurl.
+The relocated closure is 47 store paths and 85 MiB, with openssl, nghttp2/3,
+ngtcp2, brotli, zstd, krb5, libssh2, libpsl and c-ares. The ELF side
+relocated without a change to the relocator: 426 images, every `PT_INTERP`
+and `RUNPATH` `$ORIGIN`-relative. `g++` and libstdc++ from the existing gcc
+closure needed only rule changes (`rules/cc.bzl`): the libstdc++ include
+directories, and linking with `g++` when anything in the binary is C++. On
+the worker, libcurl and its transitive libraries load through `$ORIGIN`.
+
+What does not relocate is any absolute path that a library computes and
+opens itself. The relocator rewrites the hash, so the path names the
+relocated store path, but it is still `/nix/store/...`:
+
+| Library | Compiled-in path | On the worker | From a Nix store |
+|---|---|---|---|
+| libpsl | the public suffix list, in another store path | absent: silently falls back to its built-in list | present |
+| OpenSSL | `MODULESDIR` (providers), `OPENSSLDIR` (config, certs) | absent: the legacy provider does not load | present, loads |
+| krb5 | plugin directories, `krb5.conf`, locale | not exercised | |
+| scripts | shebangs (`curl-config`, `krb5-config`) | not exercised; cannot run | |
+
+These come from the same binary, run by `tests/step3.sh` on the worker and
+by its own loader from a store that `fetchClosure` filled. A worker gets the
+right libraries and quietly different behaviour. `check-relocatable.py` saw
+all of these: they are among the 232 files it lists as informational. A
+fixup hook for `relocatable = true` (roadmap step 3) has to decide what to
+do about them. It could make them `$ORIGIN`-relative at the source, where
+the library supports that (OpenSSL can locate providers relative to
+libcrypto), or fail.
+
+### Linking and running need whole closures, not projections
+
+A library's `$ORIGIN` RUNPATH works at link time too. GNU ld expands
+`$ORIGIN` in a library's RUNPATH (binutils 2.28 and later) to find the
+libraries it needs, so the cc-wrapper's job needs no `-rpath-link`. But a
+store path handed to an action as a projection of the closure (`-L
+<curl>/lib`) sends only that subtree, so the libraries libcurl needs were
+missing from the link. At run time the same thing happens one level down. A
+binary's runtime store paths are symlinks into their closure trees, and the
+kernel resolves a library's `$ORIGIN/../..` through the link, inside that
+library's own closure. That closure must be there whole. A store path that
+two closures share is laid out once beside the binary, so the other
+closure's copy is never sent. The link and run actions now take every
+closure they use whole.
+
+In that VM, with a warm local CAS, materialising inputs took about 190 ms
+for curlhello's link against 75–90 ms for the C binaries. It took about
+180 ms for every run action, which now carries the gcc tree as well. The
+C++ compile took 412 ms against about 35 ms for C.
+
+### A C++ binary at `-O0` refers to its compiler
+
+GCC 15 and later define `_GLIBCXX_ASSERTIONS` by default when not
+optimising, and the rules pass no `-O`. libstdc++'s assertion messages embed
+`__FILE__` of its headers, so the binary names the gcc store path (here as
+a `buck-out` path) and Nix's scan makes all of gcc a runtime dependency:
+curlhello's closure is 28 store paths and 362 MiB. Nix behaves the same way
+for an `-O0` C++ build. The rules leave it as it is: removing the reference
+would mean dropping the assertions or rewriting the path.
+
 ### `fetchClosure` reads only http(s) stores
 
 A buck2 output reaches Nix as `builtins.fetchClosure` of a pinned path.
@@ -151,7 +212,10 @@ Nix can read the CAS itself, both go away.
 
 ## Not covered
 
-- C++ and libstdc++.
+- curlhello on the Nix host VM. `tests/step4.sh` publishes hello and
+  zhello only. curlhello was published, substituted with `fetchClosure` and
+  run by its loader in the dev container, a 7.2 kernel without the handler.
+- Running the scripts in a closure, and krb5's compiled-in paths.
 - A buck2-built shared library loaded by a buck2-built binary. `cc_library`
   is static only, and `publish` looks for references only among relocated
   Nix closures.

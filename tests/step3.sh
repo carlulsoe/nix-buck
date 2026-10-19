@@ -1,8 +1,9 @@
 #!/bin/sh
 # Boot the worker VM, upload the relocated closures, and have buck2 compile,
-# archive, link and run hello and zhello (zlib from nixpkgs, a buck2-built
-# static library) on the worker: every command remote, nothing local, and
-# every action sandboxed so it sees nothing of the worker but its inputs.
+# archive, link and run hello, zhello (zlib from nixpkgs, a buck2-built
+# static library) and curlhello (C++, libcurl and its closure) on the
+# worker: every command remote, nothing local, and every action sandboxed
+# so it sees nothing of the worker but its inputs.
 set -eu
 cd "$(dirname "$0")/.."
 dev/vm.sh worker
@@ -25,9 +26,9 @@ podman exec nix-buck sh -c '
   git diff --exit-code nix_closures.bzl
   # A fresh worker has a fresh CAS; drop the daemon'\''s memory of the old one.
   buck2 kill > /dev/null 2>&1 || true
-  buck2 build //:hello-report //:zhello-report //:probe-report --no-remote-cache 2>&1 | tee /tmp/step3.out
-  # 4 compiles, ar, 3 links, 3 runs.
-  grep -q "Commands: 11 (cached: 0, remote: 11, local: 0)" /tmp/step3.out
+  buck2 build //:hello-report //:zhello-report //:curlhello-report //:probe-report --no-remote-cache 2>&1 | tee /tmp/step3.out
+  # 5 compiles, ar, 4 links, 4 runs.
+  grep -q "Commands: 14 (cached: 0, remote: 14, local: 0)" /tmp/step3.out
   buck2 run //:probe-report 2>/dev/null | tee /tmp/step3.probe
   grep -qx "/nix/store: hidden" /tmp/step3.probe
   grep -qx "mount: denied" /tmp/step3.probe
@@ -37,7 +38,7 @@ podman exec nix-buck sh -c '
     echo "actions see or can reach the worker" >&2; exit 1
   fi
   gcc=/nix/store/$(nix eval --raw .#gcc-closure.originals.gcc)
-  for t in hello zhello; do
+  for t in hello zhello curlhello; do
     buck2 run //:$t-report 2>/dev/null | tee /tmp/step3.$t
     grep -q "^kernel: *Linux 7\.3" /tmp/step3.$t
     grep -q "^hostname: *nix-origin-worker" /tmp/step3.$t
@@ -47,4 +48,6 @@ podman exec nix-buck sh -c '
   done
   grep -qx "zlib: *1\.3\.2, round trip ok" /tmp/step3.zhello
   grep -Eq "^libz: .*/root/nix/store/zhello/bin/\.\./\.\./[a-z0-9]{32}-zlib-1\.3\.2/lib/libz\.so\.1$" /tmp/step3.zhello
+  grep -Eq "^curl: *8\.22\.0, OpenSSL/3\.5\.8, file:// [0-9]+ bytes$" /tmp/step3.curlhello
+  grep -Eq "^libcurl: .*/root/nix/store/curlhello/bin/\.\./\.\./[a-z0-9]{32}-curl-8\.22\.0/lib/libcurl\.so\.4$" /tmp/step3.curlhello
   echo "step 3: ok"'
