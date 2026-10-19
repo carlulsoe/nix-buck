@@ -146,7 +146,8 @@ relocated store path, but it is still `/nix/store/...`:
 | scripts | shebangs (`curl-config`, `krb5-config`) | not exercised; cannot run | |
 
 These come from the same binary, run by `tests/step3.sh` on the worker and
-by its own loader from a store that `fetchClosure` filled. A worker gets the
+by `tests/step4.sh` on the Nix host VM, which substitutes it with
+`fetchClosure`. A worker gets the
 right libraries and quietly different behaviour. `check-relocatable.py` saw
 all of these: they are among the 232 files it lists as informational. A
 fixup hook for `relocatable = true` (roadmap step 3) has to decide what to
@@ -212,9 +213,6 @@ Nix can read the CAS itself, both go away.
 
 ## Not covered
 
-- curlhello on the Nix host VM. `tests/step4.sh` publishes hello and
-  zhello only. curlhello was published, substituted with `fetchClosure` and
-  run by its loader in the dev container, a 7.2 kernel without the handler.
 - Running the scripts in a closure, and krb5's compiled-in paths.
 - A buck2-built shared library loaded by a buck2-built binary. `cc_library`
   is static only, and `publish` looks for references only among relocated

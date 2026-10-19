@@ -1,6 +1,6 @@
 #!/bin/sh
-# buck2 outputs -> Nix store paths. After step 3 built hello and zhello on
-# the worker: publish them into a static binary cache, served by a plain
+# buck2 outputs -> Nix store paths. After step 3 built hello, zhello and
+# curlhello on the worker: publish them into a static binary cache, served by a plain
 # file server, substitute them into the container's store by their pinned
 # digests (fetchClosure from the cache), closure and all, and do the same on
 # a Linux 7.3 Nix host VM, where they run natively.
@@ -23,13 +23,13 @@ podman exec nix-buck sh -c '
   originals=$(nix eval --json .#gcc-closure.originals)
 
   # The cache started empty: everything in it comes from this publish.
-  nix run .#publish -- //:hello //:zhello | tee /tmp/step4.publish
+  nix run .#publish -- //:hello //:zhello //:curlhello | tee /tmp/step4.publish
   key=$(cat .nix-buck/public-key)
   # buck2 built exactly the trees buck2-pins.json pins.
   git diff --exit-code buck2-pins.json
 
   : > /tmp/step4.paths
-  for t in hello zhello; do
+  for t in hello zhello curlhello; do
     digest=$(grep -o "\"$t\": \"[0-9a-f]*:[0-9]*\"" buck2-pins.json | cut -d\" -f4)
     path=$(nix eval --raw .#lib.buck2 --apply "b: b.storePath { name = \"$t\"; digest = \"$digest\"; }")
     grep -qx "  store path $path" /tmp/step4.publish
@@ -46,11 +46,19 @@ podman exec nix-buck sh -c '
     [ "$(readlink -f result-$t)" = "$path" ]
 
     # Its references are the relocated runtime libraries it was linked
-    # with, found by scanning; never gcc, never an unrelocated original.
+    # with, found by scanning; never an unrelocated original, and never gcc
+    # but for curlhello: C++ at -O0 names it in libstdc++'\''s assertions.
     nix-store -q --references "$path" | tee /tmp/step4.refs
     grep -q -- "-glibc-2.44-25$" /tmp/step4.refs
     grep -q -- "-gcc-16.2.0-lib$" /tmp/step4.refs
-    if [ $t = zhello ]; then n=3; grep -q -- "-zlib-1.3.2$" /tmp/step4.refs; else n=2; fi
+    case $t in
+      hello) n=2 ;;
+      zhello) n=3; grep -q -- "-zlib-1.3.2$" /tmp/step4.refs ;;
+      curlhello) n=6
+        for r in -gcc-16.2.0 -curl-8.22.0 -openssl-3.5.8 -libpsl-0.21.5; do
+          grep -q -- "$r$" /tmp/step4.refs
+        done ;;
+    esac
     [ "$(wc -l < /tmp/step4.refs)" = $n ]
     # Its whole closure is in the cache, and none of it is an original.
     for p in $(nix-store -qR "$path"); do
@@ -66,8 +74,8 @@ podman exec nix-buck sh -c '
 
   # Publishing again adds nothing: the cache already has every path, with
   # the same contents.
-  nix run .#publish -- //:hello //:zhello | grep "closure:" | tee /tmp/step4.again
-  [ "$(grep -c ", 0 newly in the cache$" /tmp/step4.again)" = 2 ]
+  nix run .#publish -- //:hello //:zhello //:curlhello | grep "closure:" | tee /tmp/step4.again
+  [ "$(grep -c ", 0 newly in the cache$" /tmp/step4.again)" = 3 ]
 
   # The same through a Nix host on 7.3, where the binaries run without help.
   rm -rf /var/lib/vms/host-demo && mkdir -p /var/lib/vms/host-demo
@@ -96,7 +104,12 @@ podman exec nix-buck sh -c '
   done
   grep -Eqx "libz: */nix/store/[a-z0-9]{32}-zhello/bin/\.\./\.\./[a-z0-9]{32}-zlib-1\.3\.2/lib/libz\.so\.1" $out
   grep -qx "zlib: *1\.3\.2, round trip ok" $out
-  [ "$(grep -c "^kernel: *Linux 7\.3" $out)" = 2 ]
-  [ "$(grep -c "^hostname: *nix-origin-host$" $out)" = 2 ]
-  [ "$(grep -cx "$gcc on this machine: absent" $out)" = 2 ]
+  grep -Eqx "libcurl: */nix/store/[a-z0-9]{32}-curlhello/bin/\.\./\.\./[a-z0-9]{32}-curl-8\.22\.0/lib/libcurl\.so\.4" $out
+  # In a Nix store, the paths libpsl and OpenSSL compiled in exist; on the
+  # worker (step 3) they do not.
+  grep -Eqx "psl list: */nix/store/[a-z0-9]{32}-publicsuffix-list-[^ ]*/public_suffix_list\.dat \(present\), co\.uk public: yes" $out
+  grep -Eqx "ossl modules: */nix/store/[a-z0-9]{32}-openssl-3\.5\.8/lib/ossl-modules \(present\), legacy provider: loaded" $out
+  [ "$(grep -c "^kernel: *Linux 7\.3" $out)" = 3 ]
+  [ "$(grep -c "^hostname: *nix-origin-host$" $out)" = 3 ]
+  [ "$(grep -cx "$gcc on this machine: absent" $out)" = 3 ]
   echo "step 4: ok"'
