@@ -48,6 +48,7 @@ def _nix_closure_impl(ctx: AnalysisContext) -> list[Provider]:
         "buck2-default",
         # No minimum lifetime: OSS buck2 cannot extend CAS TTLs, and asking for
         # more than `cas_ttl_secs` makes it try. push-closure re-uploads.
+        # Remove when OSS buck2's REAPI client can extend TTLs.
         expires_after_timestamp = 0,
         is_directory = True,
     )

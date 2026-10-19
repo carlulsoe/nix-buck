@@ -6,6 +6,7 @@ let
   nixOriginBpf = pkgs.callPackage ./nix-origin-bpf.nix { inherit kernel; };
 in
 {
+  # Stand-in until 7.3 is released: then the default kernel, if it is 7.3+.
   boot.kernelPackages = pkgs.linuxPackages_testing;
   boot.kernelPatches = [{
     name = "binfmt-misc-bpf";
@@ -18,6 +19,8 @@ in
   }];
 
   # Register the $ORIGIN handler before anything runs workloads.
+  # Stand-in for the NixOS module of the article's roadmap step 4, which also
+  # gates on a PT_INTERP_NIX marker. Remove this file when that module exists.
   systemd.services.nix-origin-binfmt = {
     description = "binfmt_misc bpf handler: $ORIGIN in PT_INTERP";
     wantedBy = [ "multi-user.target" ];

@@ -11,6 +11,8 @@
       lib = nixpkgs.lib;
 
       # The relocator, and only it: its source is part of every relocated name.
+      # Comment on its files here, not in them: editing them renames every
+      # relocated path and changes the pins.
       relocator = lib.fileset.toSource {
         root = ./nix;
         fileset = lib.fileset.unions [ ./nix/relocate.py ./nix/check-relocatable.py ./nix/storepath.py ];
@@ -20,6 +22,14 @@
       # path renamed and made $ORIGIN-relative (see nix/relocate.py), and
       # refuse to produce it if anything still pins it to /nix/store or names
       # an original path. `originals` names the roots as cache.nixos.org has them.
+      #
+      # Stand-in for the article's roadmap steps 1-3: nixpkgs building with
+      # $ORIGIN loader paths, relocatable wrappers, and `relocatable = true`
+      # enforced by a fixup hook (check-relocatable.py plays that hook).
+      # Patching after the fact changes the bytes, so the paths must be renamed
+      # and can never be cache.nixos.org's. Remove when nixpkgs builds these
+      # roots relocatably: they are then used as they are, under their own
+      # names, and `originals` goes with this.
       relocate = name: roots: pkgs.runCommand name {
         nativeBuildInputs = [ pkgs.python3 pkgs.patchelf ];
         __structuredAttrs = true;
@@ -78,6 +88,10 @@
 
       # Build buck2 targets, add them and their closures to the static binary
       # cache in .nix-buck/cache, and pin their digests in buck2-pins.json.
+      # Stand-in, with serve-cache, for Nix substituting from the REAPI CAS
+      # itself, as the article's CAS-as-substituter does: the cache copies
+      # out of the CAS what is already there. Remove when Nix can read a
+      # store path from a REAPI CAS by digest (roadmap step 5).
       # The signing key is .nix-buck/secret-key; Nix needs .nix-buck/public-key.
       # Run from the repository root.
       publish = pkgs.writeShellApplication {

@@ -25,7 +25,8 @@ from storepath import STORE, nix32, scan
 
 
 def store_path(digest: str, name: str) -> str:
-    """/nix/store/<hash>-<name> for a REAPI Directory digest "<sha256>:<size>"."""
+    """/nix/store/<hash>-<name> for a REAPI Directory digest "<sha256>:<size>".
+    A stand-in, removed with nix/buck2.nix's storePath."""
     h = nix32(hashlib.sha256(f"buck2-reapi-directory:{digest}:{name}".encode()).digest())
     return f"{STORE}{h[:32]}-{name}"
 

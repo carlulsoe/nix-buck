@@ -5,7 +5,8 @@
 # One change: the selftest uses classic dispatch, where ld.so becomes the
 # exec'd program (/proc/self/exe names the loader). We request loader
 # substitution instead, so the binary runs as a native exec and only its
-# PT_INTERP is swapped, as in the article's output.
+# PT_INTERP is swapped, as in the article's output. A stand-in: remove with origin.nix's
+# registration, or the patch alone if the in-tree handler requests it.
 { stdenvNoCC, kernel, bpftools, libbpf, llvmPackages }:
 
 stdenvNoCC.mkDerivation {

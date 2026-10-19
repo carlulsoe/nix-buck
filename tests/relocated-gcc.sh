@@ -7,7 +7,8 @@
 # Without it, every exec is routed through the closure's own ld.so: cc1, as
 # and collect2 via gcc's -wrapper, and the ld that collect2 starts via a shim
 # found first on the -B path. RUNPATH $ORIGIN resolution, header and crt
-# lookup, and linking run for real either way.
+# lookup, and linking run for real either way. The routing stays while the
+# machines running step 1 have kernels older than 7.3.
 #
 # usage: relocated-gcc.sh CLOSURE_DIR SRC_DIR NIX_GCC
 #   CLOSURE_DIR contains nix/store; SRC_DIR has hello.c and report.c;

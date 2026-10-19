@@ -8,6 +8,9 @@ file://... or from any static web server or bucket it is copied to.
 
 One store path, one content: adding a path that is already in the cache
 with another NAR hash is an error.
+
+A stand-in for Nix substituting from the REAPI CAS; see `publish` in
+flake.nix for when it goes.
 """
 
 import base64
